@@ -73,8 +73,10 @@ collectFormState()
 #### DigitalOcean — Ubuntu cloud-init
 
 ```bash
-# Install doctl
-brew install doctl
+# Install doctl — https://docs.digitalocean.com/reference/doctl/how-to/install/
+# macOS:  brew install doctl
+# Linux:  snap install doctl  (or download binary from GitHub releases)
+# Windows: choco install doctl  (or download binary from GitHub releases)
 doctl auth init
 
 # Deploy
@@ -93,8 +95,9 @@ ssh ubuntu@<ip> cat /var/log/cloud-init-output.log
 #### Vultr — Flatcar + Ignition
 
 ```bash
-# Install vultr-cli
-brew install vultr-cli
+# Install vultr-cli — https://github.com/vultr/vultr-cli#installation
+# macOS:  brew install vultr-cli
+# Linux / Windows: download binary from GitHub releases
 vultr-cli auth   # enter API key
 
 # Find Flatcar OS ID
@@ -146,18 +149,6 @@ Requires a provider that offers Flatcar as an OS image:
 | Vultr | Built-in OS option |
 | Equinix Metal | First-class Flatcar support |
 | OpenStack | Works with custom Flatcar image |
-
----
-
-## Deploy this app
-
-GitHub Pages (recommended):
-
-1. Fork or push to a GitHub repo
-2. Go to **Settings → Pages → Source: Deploy from branch → main → / (root)**
-3. Done — the app is live at `https://zytelabs.github.io/spawn-cloud-scraper`
-
-The clipboard Copy button requires HTTPS. It works on GitHub Pages and Netlify. Over plain `file://` some browsers block the Clipboard API — the app falls back to `execCommand` automatically.
 
 ---
 
