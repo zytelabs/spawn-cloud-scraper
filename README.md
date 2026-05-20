@@ -4,6 +4,8 @@ A single-file web app that generates ready-to-paste bootstrap configs for cloud 
 
 **Live:** https://zytelabs.github.io/spawn-cloud-scraper
 
+![spawn-cloud-scraper](assets/screenshot.png)
+
 ---
 
 ## What
