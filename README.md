@@ -2,7 +2,7 @@
 
 A single-file web app that generates ready-to-paste bootstrap configs for cloud VMs running a web scraping stack. Fill a form, click Copy (or Download), paste into your cloud provider's user-data field — done.
 
-**Live:** https://apscrapes.github.io/spawn-cloud-scraper
+**Live:** https://zytelabs.github.io/spawn-cloud-scraper
 
 ---
 
@@ -155,7 +155,7 @@ GitHub Pages (recommended):
 
 1. Fork or push to a GitHub repo
 2. Go to **Settings → Pages → Source: Deploy from branch → main → / (root)**
-3. Done — the app is live at `https://<user>.github.io/<repo>`
+3. Done — the app is live at `https://zytelabs.github.io/spawn-cloud-scraper`
 
 The clipboard Copy button requires HTTPS. It works on GitHub Pages and Netlify. Over plain `file://` some browsers block the Clipboard API — the app falls back to `execCommand` automatically.
 
