@@ -1,0 +1,25 @@
+# Project instructions — not for version control
+CLAUDE.md
+design.md
+test.md
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Env files
+.env
+.env.*
+
+# Generated configs (downloaded outputs)
+cloud-config.yaml
+ignition.json
+butane.yaml

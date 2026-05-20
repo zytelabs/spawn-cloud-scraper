@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flatcar Scraping Stack Config Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* === RESET === */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* === TOKENS === */
+:root {
+  --surface:         #fbf8ff;
+  --surface-low:     #f4f2ff;
+  --surface-lowest:  #ffffff;
+  --surface-high:    #e0e0ff;
+  --surface-bright:  #f0eeff;
+  --on-surface:      #0d1350;
+  --on-surface-dim:  rgba(13, 19, 80, 0.5);
+  --primary:         #9100af;
+  --primary-end:     #b02bce;
+  --secondary:       #181E5A;
+  --success:         #009A2F;
+  --danger:          #c4314b;
+  --outline:         rgba(13, 19, 80, 0.15);
+}
+
+/* === BASE === */
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--surface);
+  color: var(--on-surface);
+  min-height: 100vh;
+}
+
+/* === HEADER === */
+.page-header {
+  text-align: center;
+  padding: 48px 24px 32px;
+  margin-bottom: 32px;
+}
+.page-header h1 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.page-header .subtitle {
+  color: var(--on-surface-dim);
+  font-size: 0.84rem;
+  margin-top: 8px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* === LAYOUT === */
+.app-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 32px 64px;
+  align-items: start;
+}
+.output-panel {
+  position: sticky;
+  top: 24px;
+}
+
+/* === SECTIONS === */
+.section {
+  background: var(--surface-low);
+  border-radius: 0.5rem;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-hint {
+  font-size: 0.7rem;
+  color: var(--on-surface-dim);
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 400;
+}
+.section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* === INPUTS === */
+.field-label {
+  font-size: 0.78rem;
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--on-surface-dim);
+  margin-bottom: 4px;
+  display: block;
+}
+input[type="text"], textarea {
+  width: 100%;
+  background: var(--surface-high);
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  color: var(--on-surface);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.82rem;
+  padding: 10px 12px;
+  outline: none;
+  resize: vertical;
+  transition: background 0.15s, border-color 0.15s;
+}
+input[type="text"]:focus, textarea:focus {
+  background: var(--surface-bright);
+  border-bottom-color: var(--primary);
+}
+textarea { min-height: 80px; }
+
+/* === ENV ROWS === */
+.env-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+.env-key { color: var(--secondary); }
+.env-val { color: var(--primary); }
+.btn-remove {
+  background: none;
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  color: var(--danger);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-remove:hover { background: rgba(196, 49, 75, 0.08); border-color: rgba(196, 49, 75, 0.4); }
+
+/* === BUTTONS === */
+.btn-ghost {
+  background: none;
+  border: 1px solid var(--outline);
+  border-radius: 0.75rem;
+  color: var(--primary);
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  margin-top: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-ghost:hover { background: rgba(145, 0, 175, 0.06); border-color: rgba(145, 0, 175, 0.35); }
+
+/* === SERVICE GROUPS === */
+.service-group { margin-bottom: 16px; }
+.service-group:last-child { margin-bottom: 0; }
+.service-group-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-dim);
+  margin-bottom: 6px;
+}
+.service-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.service-row:hover { background: var(--surface-bright); }
+.service-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--outline);
+  border-radius: 5px;
+  background: var(--surface-lowest);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.service-row input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.service-row input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px; top: 1px;
+  width: 6px; height: 10px;
+  border: 2px solid #fff;
+  border-top: none; border-left: none;
+  transform: rotate(45deg);
+}
+.service-label {
+  font-size: 0.88rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  color: var(--on-surface);
+}
+.service-image {
+  font-size: 0.68rem;
+  color: var(--on-surface-dim);
+  font-family: 'Space Grotesk', sans-serif;
+  background: rgba(145, 0, 175, 0.06);
+  border: 1px solid var(--outline);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.badge-warn {
+  font-size: 0.62rem;
+  background: rgba(180, 140, 0, 0.08);
+  color: #8a6800;
+  border: 1px solid rgba(180, 140, 0, 0.25);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-weight: 600;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* === OUTPUT PANEL === */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  background: var(--secondary);
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 10px 12px;
+  gap: 4px;
+}
+.tab {
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.82rem;
+  padding: 6px 14px;
+  transition: color 0.15s, background 0.15s;
+}
+.tab:hover { color: rgba(255, 255, 255, 0.85); }
+.tab.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-weight: 600;
+}
+.btn-copy {
+  margin-left: auto;
+  background: linear-gradient(135deg, var(--primary), var(--primary-end));
+  border: none;
+  border-radius: 0.75rem;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 18px;
+  transition: filter 0.15s, box-shadow 0.15s;
+}
+.btn-copy:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 12px 40px rgba(13, 19, 80, 0.18);
+}
+.output-pane { display: none; }
+.output-pane.active { display: block; }
+.output-pre {
+  background: var(--secondary);
+  border-radius: 0 0 0.5rem 0.5rem;
+  padding: 20px;
+  font-family: 'Space Grotesk', monospace;
+  font-size: 0.73rem;
+  line-height: 1.7;
+  overflow: auto;
+  max-height: calc(100vh - 180px);
+  white-space: pre;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* === SYNTAX TOKENS === */
+.tok-key     { color: #a78bfa; }
+.tok-value   { color: #34d399; }
+.tok-string  { color: #86efac; }
+.tok-comment { color: rgba(255, 255, 255, 0.32); font-style: italic; }
+.tok-bool    { color: #fb923c; }
+.tok-number  { color: #fbbf24; }
+
+/* === INFO BOX === */
+.info-box {
+  margin-top: 12px;
+  border-radius: 0.5rem;
+  padding: 14px 16px;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.info-warn {
+  background: rgba(180, 140, 0, 0.06);
+  border: 1px solid rgba(180, 140, 0, 0.2);
+  color: var(--on-surface-dim);
+}
+.info-warn strong { color: #8a6800; }
+.info-warn code {
+  font-family: 'Space Grotesk', monospace;
+  color: var(--primary);
+  font-size: 0.88em;
+}
+.info-tip {
+  background: rgba(145, 0, 175, 0.05);
+  border: 1px solid var(--outline);
+  color: var(--on-surface-dim);
+}
+.info-tip strong { color: var(--primary); }
+.info-tip code {
+  font-family: 'Space Grotesk', monospace;
+  color: var(--secondary);
+  font-size: 0.88em;
+}
+
+/* === MODE TOGGLE === */
+.mode-toggle {
+  display: flex;
+  background: var(--surface-low);
+  border-radius: 0.75rem;
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+.mode-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 0.6rem;
+  color: var(--on-surface-dim);
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 10px 0;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.mode-btn.active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-end));
+  color: #ffffff;
+  box-shadow: 0 2px 14px rgba(145, 0, 175, 0.28);
+}
+.mode-btn:not(.active):hover { color: var(--primary); }
+.service-row.svc-unavailable { opacity: 0.35; pointer-events: none; }
+
+/* === DOWNLOAD STRIP === */
+.output-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.btn-download {
+  background: none;
+  border: 1px solid var(--outline);
+  border-radius: 0.75rem;
+  color: var(--primary);
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 18px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-download:hover { background: rgba(145, 0, 175, 0.06); border-color: rgba(145, 0, 175, 0.35); }
+
+/* === RESPONSIVE === */
+@media (max-width: 920px) {
+  .app-grid { grid-template-columns: 1fr; padding: 0 16px 48px; }
+  .output-panel { position: static; }
+  .output-pre { max-height: 50vh; }
+}
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>Cloud VM Scraping Stack</h1>
+  <p class="subtitle">Config Generator · Flatcar Ignition 3.4.0 &amp; Ubuntu cloud-init</p>
+</header>
+
+<div class="app-grid">
+
+  <!-- LEFT: form -->
+  <form id="config-form" class="form-panel" onsubmit="return false">
+
+    <div class="mode-toggle">
+      <button type="button" id="mode-ubuntu"  class="mode-btn active" onclick="switchMode('ubuntu')">Ubuntu 24.04</button>
+      <button type="button" id="mode-flatcar" class="mode-btn"        onclick="switchMode('flatcar')">Flatcar Linux</button>
+    </div>
+
+    <section class="section">
+      <h2 class="section-title">VM Settings</h2>
+      <div class="section-body">
+        <label class="field-label" for="hostname">Hostname</label>
+        <input type="text" id="hostname" value="my-cloud-scraper" placeholder="my-cloud-scraper">
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">SSH Public Keys</h2>
+      <div class="section-body">
+        <label class="field-label" for="ssh-keys">One key per line</label>
+        <textarea id="ssh-keys" rows="4" placeholder="ssh-ed25519 AAAA...&#10;ssh-rsa AAAA..."></textarea>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">
+        API Keys &amp; Environment Variables
+        <span class="section-hint">→ /etc/scraper/.env</span>
+      </h2>
+      <div id="env-rows" class="section-body"></div>
+      <button type="button" class="btn-ghost" onclick="addEnvRow()">+ Add Variable</button>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Services</h2>
+      <div id="service-groups" class="section-body"></div>
+    </section>
+
+  </form>
+
+  <!-- RIGHT: output -->
+  <div class="output-panel">
+    <div class="tab-bar">
+      <span id="tabs-flatcar" style="display:none">
+        <button class="tab"        id="tab-butane"      onclick="switchTab('butane')">Butane YAML</button>
+        <button class="tab"        id="tab-ignition"    onclick="switchTab('ignition')">Ignition JSON</button>
+      </span>
+      <span id="tabs-ubuntu">
+        <button class="tab active" id="tab-cloudconfig" onclick="switchTab('cloudconfig')">cloud-config</button>
+      </span>
+      <button class="btn-copy" id="copy-btn" onclick="copyOutput()">Copy</button>
+    </div>
+
+    <div id="out-butane" class="output-pane">
+      <pre id="pre-butane" class="output-pre"></pre>
+    </div>
+    <div id="out-ignition" class="output-pane">
+      <pre id="pre-ignition" class="output-pre"></pre>
+    </div>
+    <div id="out-cloudconfig" class="output-pane active">
+      <pre id="pre-cloudconfig" class="output-pre"></pre>
+    </div>
+
+    <div class="output-actions">
+      <button class="btn-download" id="download-btn" onclick="downloadOutput()">Download</button>
+    </div>
+
+    <div id="scrapy-note" class="info-box info-tip" style="display:none">
+      <strong>Scrapy Shell:</strong> Container installs Scrapy at startup then
+      stays alive. Connect with
+      <code>docker exec -it scraper-scrapy-1 scrapy shell https://example.com</code>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── 1. SERVICE DEFINITIONS ───────────────────────────────────────────────────
+
+const SERVICE_DEFS = {
+  scrapy: {
+    label: 'Scrapy Shell',
+    image: 'python:3.11-slim',
+    ports: [],
+    envFile: true,
+    restartPolicy: 'unless-stopped',
+    composeExtra: '    command: bash -c "pip install scrapy --quiet && tail -f /dev/null"\n    stdin_open: true\n    tty: true',
+    cloudInitDesc: 'pip install scrapy',
+    cloudInit: {
+      packages: ['python3-pip'],
+      runcmd: ['pip3 install scrapy'],
+    },
+  },
+  playwright: {
+    label: 'Playwright Python',
+    image: 'mcr.microsoft.com/playwright/python:latest',
+    ports: ['8000:8000'],
+    envFile: true,
+    restartPolicy: 'unless-stopped',
+    composeExtra: null,
+    cloudInitDesc: 'pip install playwright + chromium',
+    cloudInit: {
+      packages: ['python3-pip'],
+      runcmd: ['pip3 install playwright', 'playwright install chromium --with-deps'],
+    },
+  },
+  puppeteer: {
+    label: 'Puppeteer',
+    image: 'ghcr.io/puppeteer/puppeteer:latest',
+    ports: ['9000:9000'],
+    envFile: true,
+    restartPolicy: 'unless-stopped',
+    composeExtra: null,
+    cloudInitDesc: 'npm install -g puppeteer',
+    cloudInit: {
+      packages: ['nodejs', 'npm'],
+      runcmd: ['npm install -g puppeteer'],
+    },
+  },
+  splash: {
+    label: 'Splash',
+    image: 'scrapinghub/splash:latest',
+    ports: ['8050:8050'],
+    envFile: false,
+    restartPolicy: 'unless-stopped',
+    composeExtra: null,
+    cloudInitDesc: 'Docker only — skipped',
+    cloudInit: null,
+  },
+  redis: {
+    label: 'Redis',
+    image: 'redis:7-alpine',
+    ports: ['6379:6379'],
+    envFile: false,
+    restartPolicy: 'unless-stopped',
+    composeExtra: null,
+    cloudInitDesc: 'apt: redis-server',
+    cloudInit: {
+      packages: ['redis-server'],
+      runcmd: ['systemctl enable redis-server --now'],
+    },
+  },
+  postgres: {
+    label: 'PostgreSQL',
+    image: 'postgres:16-alpine',
+    ports: ['5432:5432'],
+    envFile: true,
+    restartPolicy: 'unless-stopped',
+    composeExtra: '    environment:\n      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}',
+    cloudInitDesc: 'apt: postgresql',
+    cloudInit: {
+      packages: ['postgresql', 'postgresql-contrib'],
+      runcmd: ['systemctl enable postgresql --now'],
+    },
+  },
+  tor: {
+    label: 'Tor Proxy',
+    image: 'dperson/torproxy:latest',
+    ports: ['9050:9050', '9051:9051'],
+    envFile: false,
+    restartPolicy: 'unless-stopped',
+    composeExtra: null,
+    cloudInitDesc: 'apt: tor',
+    cloudInit: {
+      packages: ['tor'],
+      runcmd: ['systemctl enable tor --now'],
+    },
+  },
+  mitmproxy: {
+    label: 'mitmproxy',
+    image: 'mitmproxy/mitmproxy:latest',
+    ports: ['8080:8080'],
+    envFile: false,
+    restartPolicy: 'unless-stopped',
+    composeExtra: null,
+    cloudInitDesc: 'pip install mitmproxy',
+    cloudInit: {
+      packages: ['python3-pip'],
+      runcmd: ['pip3 install mitmproxy'],
+    },
+  },
+};
+
+const SERVICE_GROUPS = [
+  { label: 'Scrapers',         keys: ['scrapy', 'playwright', 'puppeteer', 'splash'] },
+  { label: 'Queue / Storage',  keys: ['redis', 'postgres'] },
+  { label: 'Proxies',          keys: ['tor', 'mitmproxy'] },
+];
+
+// ── 2. SYSTEMD UNIT ──────────────────────────────────────────────────────────
+
+function renderScraperUnit() {
+  return (
+    '[Unit]\n' +
+    'Description=Scraper Stack\n' +
+    'After=docker.service network-online.target\n' +
+    'Requires=docker.service\n' +
+    '\n' +
+    '[Service]\n' +
+    'Type=oneshot\n' +
+    'RemainAfterExit=yes\n' +
+    'ExecStartPre=-/usr/bin/docker compose -f /etc/scraper/docker-compose.yml pull\n' +
+    'ExecStart=/usr/bin/docker compose -f /etc/scraper/docker-compose.yml up -d\n' +
+    'ExecStop=/usr/bin/docker compose -f /etc/scraper/docker-compose.yml down\n' +
+    'TimeoutStartSec=300\n' +
+    '\n' +
+    '[Install]\n' +
+    'WantedBy=multi-user.target'
+  );
+}
+
+// ── 3. DOCKER COMPOSE RENDERER ───────────────────────────────────────────────
+
+function renderServiceBlock(key, def) {
+  if (def.image === null) {
+    return (
+      '  # ' + key + ':\n' +
+      '  #   build: ./scrapy-spider          # replace with your project path\n' +
+      '  #   image: my-scrapy-spider:latest   # or reference a pre-built image\n' +
+      '  #   ports:\n' +
+      '  #     - "' + def.ports[0] + '"\n' +
+      '  #   env_file:\n' +
+      '  #     - /etc/scraper/.env\n' +
+      '  #   restart: ' + def.restartPolicy + '\n'
+    );
+  }
+
+  let block = '  ' + key + ':\n';
+  block += '    image: ' + def.image + '\n';
+
+  if (def.ports.length > 0) {
+    block += '    ports:\n';
+    def.ports.forEach(function(p) { block += '      - "' + p + '"\n'; });
+  }
+
+  if (def.envFile) {
+    block += '    env_file:\n';
+    block += '      - /etc/scraper/.env\n';
+  }
+
+  if (def.composeExtra) {
+    block += def.composeExtra + '\n';
+  }
+
+  block += '    restart: ' + def.restartPolicy + '\n';
+  return block;
+}
+
+function renderDockerCompose(state) {
+  if (state.services.length === 0) {
+    return 'services:\n  # No services selected\n';
+  }
+  var out = 'services:\n';
+  state.services.forEach(function(key) {
+    var def = SERVICE_DEFS[key];
+    if (def) out += renderServiceBlock(key, def) + '\n';
+  });
+  return out;
+}
+
+// ── 4. BUTANE YAML RENDERER ──────────────────────────────────────────────────
+
+function indentBlock(text, spaces) {
+  var pad = '';
+  for (var i = 0; i < spaces; i++) pad += ' ';
+  return text.trimEnd().split('\n').map(function(line) {
+    return pad + line;
+  }).join('\n') + '\n';
+}
+
+function renderButane(state) {
+  var envContent = buildEnvContent(state);
+  var composeContent = renderDockerCompose(state);
+  var unitContent = renderScraperUnit();
+
+  var out = 'variant: flatcar\nversion: 1.0.0\n';
+
+  if (state.sshKeys.length > 0) {
+    out += '\npasswd:\n  users:\n    - name: core\n      ssh_authorized_keys:\n';
+    state.sshKeys.forEach(function(k) { out += '        - ' + k + '\n'; });
+  }
+
+  out += '\nstorage:\n  files:\n';
+
+  out += '    - path: /etc/scraper/.env\n';
+  out += '      mode: 0644\n';
+  out += '      contents:\n';
+  out += '        inline: |\n';
+  out += indentBlock(envContent, 10);
+  out += '\n';
+
+  out += '    - path: /etc/scraper/docker-compose.yml\n';
+  out += '      mode: 0644\n';
+  out += '      contents:\n';
+  out += '        inline: |\n';
+  out += indentBlock(composeContent, 10);
+
+  out += '\nsystemd:\n  units:\n';
+  out += '    - name: docker.service\n';
+  out += '      enabled: true\n';
+  out += '\n';
+  out += '    - name: scraper.service\n';
+  out += '      enabled: true\n';
+  out += '      contents: |\n';
+  out += indentBlock(unitContent, 8);
+
+  return out;
+}
+
+// ── 5. IGNITION JSON RENDERER ────────────────────────────────────────────────
+
+function makeDataURI(text) {
+  return 'data:,' + encodeURIComponent(text);
+}
+
+function renderIgnition(state) {
+  var envContent = buildEnvContent(state);
+  var composeContent = renderDockerCompose(state);
+  var unitContent = renderScraperUnit();
+
+  var obj = {
+    ignition: { version: '3.4.0' },
+  };
+
+  if (state.sshKeys.length > 0) {
+    obj.passwd = {
+      users: [{ name: 'core', sshAuthorizedKeys: state.sshKeys }],
+    };
+  }
+
+  obj.storage = {
+    files: [
+      {
+        path: '/etc/scraper/.env',
+        contents: { source: makeDataURI(envContent) },
+        mode: 420,
+      },
+      {
+        path: '/etc/scraper/docker-compose.yml',
+        contents: { source: makeDataURI(composeContent) },
+        mode: 420,
+      },
+    ],
+  };
+
+  obj.systemd = {
+    units: [
+      { name: 'docker.service', enabled: true },
+      { name: 'scraper.service', enabled: true, contents: unitContent },
+    ],
+  };
+
+  return JSON.stringify(obj, null, 2);
+}
+
+// ── 6. CLOUD-INIT RENDERER ───────────────────────────────────────────────────
+
+function renderCloudConfig(state) {
+  var allPackages = [];
+  var allRuncmds  = [];
+
+  state.services.forEach(function(key) {
+    var def = SERVICE_DEFS[key];
+    if (!def || !def.cloudInit) return;
+    def.cloudInit.packages.forEach(function(p) {
+      if (allPackages.indexOf(p) === -1) allPackages.push(p);
+    });
+    def.cloudInit.runcmd.forEach(function(r) { allRuncmds.push(r); });
+  });
+
+  var out = '#cloud-config\n\n';
+  out += 'hostname: ' + state.hostname + '\n\n';
+  out += 'package_update: true\n\n';
+
+  if (state.sshKeys.length > 0) {
+    out += 'users:\n';
+    out += '  - name: ubuntu\n';
+    out += '    groups: sudo\n';
+    out += '    shell: /bin/bash\n';
+    out += '    sudo: ALL=(ALL) NOPASSWD:ALL\n';
+    out += '    ssh_authorized_keys:\n';
+    state.sshKeys.forEach(function(k) { out += '      - ' + k + '\n'; });
+    out += '\n';
+  }
+
+  var envContent = buildEnvContent(state) || '# add your API keys here\n';
+  out += 'write_files:\n';
+  out += '  - path: /etc/scraper/.env\n';
+  out += '    permissions: \'0600\'\n';
+  out += '    content: |\n';
+  out += indentBlock(envContent, 6);
+  out += '\n';
+
+  if (allPackages.length > 0) {
+    out += 'packages:\n';
+    allPackages.forEach(function(p) { out += '  - ' + p + '\n'; });
+    out += '\n';
+  }
+
+  if (allRuncmds.length > 0) {
+    out += 'runcmd:\n';
+    allRuncmds.forEach(function(cmd) { out += '  - ' + cmd + '\n'; });
+  }
+
+  return out;
+}
+
+// ── 7. SYNTAX HIGHLIGHTING ───────────────────────────────────────────────────
+
+function highlightYAML(text) {
+  return text.split('\n').map(function(line) {
+    var s = line
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    if (!s.trim()) return s;
+
+    if (/^\s*#/.test(s)) {
+      return '<span class="tok-comment">' + s + '</span>';
+    }
+
+    var result = s.replace(/^(\s*(?:-\s+)?)([\w][\w\-]*)(\s*:)(\s*)(.*)$/, function(_, pre, key, col, sp, val) {
+      var valOut = val;
+      if (val) {
+        var v = val.trim();
+        if (v === 'true' || v === 'false' || v === 'null') {
+          valOut = '<span class="tok-bool">' + val + '</span>';
+        } else if (/^[\d]+$/.test(v)) {
+          valOut = '<span class="tok-number">' + val + '</span>';
+        } else if (v === '|' || v === '>' || v === '|-' || v === '>-') {
+          valOut = '<span class="tok-string">' + val + '</span>';
+        } else {
+          valOut = '<span class="tok-value">' + val + '</span>';
+        }
+      }
+      return pre + '<span class="tok-key">' + key + '</span>' + col + sp + valOut;
+    });
+
+    if (result !== s) return result;
+
+    // Pure list value (SSH keys, port strings, etc.)
+    return s.replace(/^(\s*-\s+)(.+)$/, function(_, pre, val) {
+      return pre + '<span class="tok-string">' + val + '</span>';
+    });
+  }).join('\n');
+}
+
+function highlightJSON(text) {
+  var safe = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  return safe.replace(
+    /("(?:\\u[0-9a-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    function(match) {
+      var cls = 'tok-number';
+      if (/^"/.test(match)) {
+        cls = /:\s*$/.test(match) ? 'tok-key' : 'tok-string';
+      } else if (/^(?:true|false|null)$/.test(match)) {
+        cls = 'tok-bool';
+      }
+      return '<span class="' + cls + '">' + match + '</span>';
+    }
+  );
+}
+
+// ── 7. FORM STATE ────────────────────────────────────────────────────────────
+
+function buildEnvContent(state) {
+  var lines = state.envVars
+    .filter(function(r) { return r.key.trim(); })
+    .map(function(r) { return r.key.trim() + '=' + r.value; });
+  return lines.join('\n') + (lines.length > 0 ? '\n' : '');
+}
+
+function parseSSHKeys() {
+  return document.getElementById('ssh-keys').value
+    .split('\n')
+    .map(function(k) { return k.trim(); })
+    .filter(function(k) { return k && !k.startsWith('#'); });
+}
+
+function collectEnvVars() {
+  var vars = [];
+  document.querySelectorAll('.env-row').forEach(function(row) {
+    vars.push({
+      key:   row.querySelector('.env-key').value,
+      value: row.querySelector('.env-val').value,
+    });
+  });
+  return vars;
+}
+
+function collectServices() {
+  return Array.from(document.querySelectorAll('input[data-service]:checked'))
+    .map(function(cb) { return cb.dataset.service; });
+}
+
+function collectFormState() {
+  return {
+    hostname: document.getElementById('hostname').value.trim() || 'flatcar-scraper',
+    sshKeys:  parseSSHKeys(),
+    envVars:  collectEnvVars(),
+    services: collectServices(),
+  };
+}
+
+// ── 8. UI ACTIONS ────────────────────────────────────────────────────────────
+
+function addEnvRow(key, value) {
+  key   = key   !== undefined ? key   : '';
+  value = value !== undefined ? value : '';
+
+  var container = document.getElementById('env-rows');
+  var row = document.createElement('div');
+  row.className = 'env-row';
+
+  var keyInput = document.createElement('input');
+  keyInput.type = 'text';
+  keyInput.className = 'env-key';
+  keyInput.placeholder = 'KEY';
+  keyInput.value = key;
+
+  var valInput = document.createElement('input');
+  valInput.type = 'text';
+  valInput.className = 'env-val';
+  valInput.placeholder = 'value';
+  valInput.value = value;
+
+  var removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn-remove';
+  removeBtn.title = 'Remove';
+  removeBtn.textContent = '×';
+  removeBtn.addEventListener('click', function() {
+    row.remove();
+    regenerate();
+  });
+
+  row.appendChild(keyInput);
+  row.appendChild(valInput);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+  regenerate();
+}
+
+var currentTab    = 'cloudconfig';
+var currentMode   = 'ubuntu';
+var serviceImageSpans = {};
+
+function switchTab(tab) {
+  currentTab = tab;
+  ['butane', 'ignition', 'cloudconfig'].forEach(function(t) {
+    var tabEl  = document.getElementById('tab-' + t);
+    var paneEl = document.getElementById('out-' + t);
+    if (tabEl)  tabEl.classList.toggle('active',  t === tab);
+    if (paneEl) paneEl.classList.toggle('active', t === tab);
+  });
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+
+  document.getElementById('mode-flatcar').classList.toggle('active', mode === 'flatcar');
+  document.getElementById('mode-ubuntu').classList.toggle('active',  mode === 'ubuntu');
+  document.getElementById('tabs-flatcar').style.display = mode === 'flatcar' ? '' : 'none';
+  document.getElementById('tabs-ubuntu').style.display  = mode === 'ubuntu'  ? '' : 'none';
+
+  switchTab(mode === 'flatcar' ? 'butane' : 'cloudconfig');
+
+  Object.keys(SERVICE_DEFS).forEach(function(key) {
+    var def = SERVICE_DEFS[key];
+    var cb  = document.getElementById('svc-' + key);
+    var row = cb ? cb.closest('.service-row') : null;
+    var unavailable = mode === 'ubuntu' && !def.cloudInit;
+    if (cb)  cb.disabled = unavailable;
+    if (row) row.classList.toggle('svc-unavailable', unavailable);
+    var span = serviceImageSpans[key];
+    if (span) span.textContent = mode === 'ubuntu'
+      ? (def.cloudInit ? def.cloudInitDesc : 'Docker only — skipped')
+      : def.image;
+  });
+
+  regenerate();
+}
+
+var rawButane      = '';
+var rawIgnition    = '';
+var rawCloudConfig = '';
+
+function copyOutput() {
+  var text = currentTab === 'cloudconfig' ? rawCloudConfig
+           : currentTab === 'ignition'    ? rawIgnition
+           : rawButane;
+  var btn  = document.getElementById('copy-btn');
+
+  function flash() {
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+  }
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(flash).catch(function() {
+      fallbackCopy(text);
+      flash();
+    });
+  } else {
+    fallbackCopy(text);
+    flash();
+  }
+}
+
+function downloadOutput() {
+  var text = currentTab === 'cloudconfig' ? rawCloudConfig
+           : currentTab === 'ignition'    ? rawIgnition
+           : rawButane;
+  var filename = currentTab === 'cloudconfig' ? 'cloud-config.yaml'
+               : currentTab === 'ignition'    ? 'ignition.json'
+               : 'butane.yaml';
+  var mime = currentTab === 'ignition' ? 'application/json' : 'text/plain';
+
+  if (window.showSaveFilePicker) {
+    window.showSaveFilePicker({
+      suggestedName: filename,
+      types: [{ description: 'Config file', accept: { [mime]: ['.' + filename.split('.').pop()] } }],
+    }).then(function(handle) {
+      return handle.createWritable();
+    }).then(function(writable) {
+      writable.write(text);
+      return writable.close();
+    }).catch(function() {});
+  } else {
+    var a = document.createElement('a');
+    a.href = 'data:' + mime + ';charset=utf-8,' + encodeURIComponent(text);
+    a.download = filename;
+    a.click();
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (_) {}
+  document.body.removeChild(ta);
+}
+
+// ── 9. REGENERATE ────────────────────────────────────────────────────────────
+
+function regenerate() {
+  var state = collectFormState();
+
+  if (currentMode === 'flatcar') {
+    rawButane   = renderButane(state);
+    rawIgnition = renderIgnition(state);
+    document.getElementById('pre-butane').innerHTML   = highlightYAML(rawButane);
+    document.getElementById('pre-ignition').innerHTML = highlightJSON(rawIgnition);
+  } else {
+    rawCloudConfig = renderCloudConfig(state);
+    document.getElementById('pre-cloudconfig').innerHTML = highlightYAML(rawCloudConfig);
+  }
+
+  var showScrapyNote = currentMode === 'flatcar' && state.services.indexOf('scrapy') !== -1;
+  document.getElementById('scrapy-note').style.display = showScrapyNote ? 'block' : 'none';
+}
+
+// ── 10. INIT ─────────────────────────────────────────────────────────────────
+
+function initServiceGroups() {
+  var container = document.getElementById('service-groups');
+
+  SERVICE_GROUPS.forEach(function(group) {
+    var groupDiv = document.createElement('div');
+    groupDiv.className = 'service-group';
+
+    var label = document.createElement('p');
+    label.className = 'service-group-label';
+    label.textContent = group.label;
+    groupDiv.appendChild(label);
+
+    group.keys.forEach(function(key) {
+      var def = SERVICE_DEFS[key];
+
+      var lbl = document.createElement('label');
+      lbl.className = 'service-row';
+
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = 'svc-' + key;
+      cb.dataset.service = key;
+
+      var span = document.createElement('span');
+      span.className = 'service-label';
+
+      var nameNode = document.createTextNode(def.label + ' ');
+      span.appendChild(nameNode);
+
+      var imgSpan = document.createElement('span');
+      imgSpan.className = 'service-image';
+      imgSpan.textContent = def.image;
+      span.appendChild(imgSpan);
+      serviceImageSpans[key] = imgSpan;
+
+      lbl.appendChild(cb);
+      lbl.appendChild(span);
+      groupDiv.appendChild(lbl);
+    });
+
+    container.appendChild(groupDiv);
+  });
+}
+
+function init() {
+  initServiceGroups();
+
+  var form = document.getElementById('config-form');
+  form.addEventListener('input',  regenerate);
+  form.addEventListener('change', regenerate);
+
+  addEnvRow('ZYTE_API_KEY', '');
+
+  // apply initial mode state (disables Docker-only services, sets image hints)
+  switchMode('ubuntu');
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
