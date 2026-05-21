@@ -21,7 +21,7 @@ Services you can include:
 
 | Service | Ubuntu | Flatcar |
 |---|---|---|
-| Scrapy Shell | native pip | python:3.11-slim container |
+| Scrapy | native pip | python:3.11-slim container |
 | Playwright Python | native pip + chromium | mcr.microsoft.com/playwright/python |
 | Puppeteer | native npm | ghcr.io/puppeteer/puppeteer |
 | Splash (JS renderer) | — Docker only | scrapinghub/splash |
@@ -46,7 +46,7 @@ It also handles the subtle differences between cloud-init (Ubuntu) and Ignition 
 
 ```
 collectFormState()
-  └─ { hostname, sshKeys[], envVars[], services[] }
+  └─ { hostname, sshKeys[], envVars[], services[], scrapyGitUrl }
        ├─ renderCloudConfig(state)  → #cloud-config YAML   (Ubuntu mode)
        ├─ renderButane(state)       → Butane YAML           (Flatcar mode)
        └─ renderIgnition(state)     → Ignition JSON 3.4.0   (Flatcar mode)
@@ -66,7 +66,25 @@ collectFormState()
 2. Choose **Ubuntu 24.04** or **Flatcar Linux**
 3. Fill in hostname, SSH public keys, and any API keys / env vars
 4. Check the services you want
-5. Click **Copy** or **Download** — the filename is pre-set for the right CLI tool
+5. *(Optional)* If you checked **Scrapy**, a **Scrapy Project** field appears — paste a Git repo URL to have your project cloned onto the VM on first boot (see below)
+6. Click **Copy** or **Download** — the filename is pre-set for the right CLI tool
+
+### Scrapy Project (optional)
+
+When the **Scrapy** service is selected, a **Git repository URL** field appears. Paste any public or private Git URL and the config will clone it automatically on first boot:
+
+| Mode | What happens |
+|---|---|
+| **Ubuntu** | `git clone <url>` runs in `runcmd:` → project lands at `/home/ubuntu/<repo-name>/`. If a `requirements.txt` is present it is installed via pip. |
+| **Flatcar** | The scrapy container installs git, clones into `/project` (inside the container), and installs `requirements.txt` if present — all as part of container startup. |
+
+**Private repos** — embed a personal access token directly in the URL:
+
+```
+https://<token>@github.com/your-org/your-repo.git
+```
+
+The token will be visible in the generated config, which is intentional — it's only ever pasted into your own cloud provider's user-data field.
 
 ---
 
@@ -133,7 +151,7 @@ ssh -i ~/.ssh/your_key core@<ip> "sudo docker ps"
 **Test each service after deploy:**
 
 ```bash
-# Scrapy Shell — drop into an interactive scrapy shell
+# Scrapy — drop into an interactive scrapy shell
 ssh -i ~/.ssh/your_key core@<ip> \
   "sudo docker exec -it scraper-scrapy-1 scrapy shell https://example.com"
 

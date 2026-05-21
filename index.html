@@ -408,6 +408,7 @@ textarea { min-height: 80px; }
   .output-panel { position: static; }
   .output-pre { max-height: 50vh; }
 }
+
 </style>
 </head>
 <body>
@@ -457,6 +458,20 @@ textarea { min-height: 80px; }
       <div id="service-groups" class="section-body"></div>
     </section>
 
+    <section class="section" id="scrapy-project-section" style="display:none">
+      <h2 class="section-title">
+        Scrapy Project
+        <span class="section-hint">→ cloned on first boot</span>
+      </h2>
+      <div class="section-body">
+        <label class="field-label" for="scrapy-git-url">Git repository URL</label>
+        <input type="text" id="scrapy-git-url" placeholder="https://github.com/you/your-scrapy-project.git">
+        <div class="info-box info-tip" style="margin-top:8px">
+          Private repo? Embed a token: <code>https://&lt;token&gt;@github.com/…</code>
+        </div>
+      </div>
+    </section>
+
   </form>
 
   <!-- RIGHT: output -->
@@ -487,7 +502,7 @@ textarea { min-height: 80px; }
     </div>
 
     <div id="scrapy-note" class="info-box info-tip" style="display:none">
-      <strong>Scrapy Shell:</strong> Container installs Scrapy at startup then
+      <strong>Scrapy:</strong> Container installs Scrapy at startup then
       stays alive. Connect with
       <code>docker exec -it scraper-scrapy-1 scrapy shell https://example.com</code>
     </div>
@@ -500,7 +515,7 @@ textarea { min-height: 80px; }
 
 const SERVICE_DEFS = {
   scrapy: {
-    label: 'Scrapy Shell',
+    label: 'Scrapy',
     image: 'python:3.11-slim',
     ports: [],
     envFile: true,
@@ -670,7 +685,15 @@ function renderServiceBlock(key, def) {
     block += '      - /etc/scraper/.env\n';
   }
 
-  if (def.composeExtra) {
+  if (key === 'scrapy' && scrapyGitUrl) {
+    var cloneCmd = 'apt-get update -q && apt-get install -y --no-install-recommends git --quiet' +
+      ' && git clone ' + scrapyGitUrl + ' /project' +
+      ' && pip install scrapy --quiet' +
+      ' && (pip install -r /project/requirements.txt --quiet 2>/dev/null || true)' +
+      ' && tail -f /dev/null';
+    block += '    command: bash -c "' + cloneCmd + '"\n';
+    block += '    stdin_open: true\n    tty: true\n';
+  } else if (def.composeExtra) {
     block += def.composeExtra + '\n';
   }
 
@@ -709,7 +732,7 @@ function renderButane(state) {
 
   if (state.sshKeys.length > 0) {
     out += '\npasswd:\n  users:\n    - name: core\n      ssh_authorized_keys:\n';
-    state.sshKeys.forEach(function(k) { out += '        - ' + k + '\n'; });
+    state.sshKeys.forEach(function(k) { out += '        - \'' + k.replace(/'/g, '') + '\'\n'; });
   }
 
   out += '\nstorage:\n  files:\n';
@@ -800,8 +823,19 @@ function renderCloudConfig(state) {
     def.cloudInit.runcmd.forEach(function(r) { allRuncmds.push(r); });
   });
 
+  if (scrapyGitUrl && state.services.indexOf('scrapy') !== -1) {
+    // Drop the bare 'pip3 install scrapy' — requirements.txt covers it
+    allRuncmds = allRuncmds.filter(function(cmd) { return cmd !== 'pip3 install scrapy'; });
+    var repoName = extractRepoName(scrapyGitUrl);
+    if (allPackages.indexOf('git') === -1) allPackages.push('git');
+    allRuncmds.push('git clone ' + scrapyGitUrl + ' /home/ubuntu/' + repoName);
+    allRuncmds.push('chown -R ubuntu:ubuntu /home/ubuntu/' + repoName);
+    allRuncmds.push('pip3 install -r /home/ubuntu/' + repoName + '/requirements.txt || true');
+  }
+
   var out = '#cloud-config\n\n';
-  out += 'hostname: ' + state.hostname + '\n\n';
+  // Single-quote the hostname to prevent YAML injection via newlines or special chars
+  out += 'hostname: \'' + state.hostname.replace(/'/g, "''").replace(/[\n\r]/g, '') + '\'\n\n';
   out += 'package_update: true\n\n';
 
   if (state.sshKeys.length > 0) {
@@ -811,7 +845,8 @@ function renderCloudConfig(state) {
     out += '    shell: /bin/bash\n';
     out += '    sudo: ALL=(ALL) NOPASSWD:ALL\n';
     out += '    ssh_authorized_keys:\n';
-    state.sshKeys.forEach(function(k) { out += '      - ' + k + '\n'; });
+    // Single-quote each key; SSH public keys never contain single quotes
+    state.sshKeys.forEach(function(k) { out += '      - \'' + k.replace(/'/g, '') + '\'\n'; });
     out += '\n';
   }
 
@@ -903,7 +938,11 @@ function highlightJSON(text) {
 function buildEnvContent(state) {
   var lines = state.envVars
     .filter(function(r) { return r.key.trim(); })
-    .map(function(r) { return r.key.trim() + '=' + r.value; });
+    .map(function(r) {
+      var key = r.key.trim().replace(/[\n\r]/g, '');
+      var val = r.value.replace(/[\n\r]/g, '');
+      return key + '=' + val;
+    });
   return lines.join('\n') + (lines.length > 0 ? '\n' : '');
 }
 
@@ -937,6 +976,20 @@ function collectFormState() {
     envVars:  collectEnvVars(),
     services: collectServices(),
   };
+}
+
+function sanitizeGitUrl(url) {
+  // Strip characters that are dangerous in shell strings and YAML scalars.
+  // Allows all standard URL characters: alphanumeric, - _ . / : @ % + = ? # ~
+  return url.trim().replace(/[^a-zA-Z0-9\-._/:@%+=?#~]/g, '');
+}
+
+function extractRepoName(url) {
+  var parts = url.trim().split('/');
+  var last = parts[parts.length - 1] || parts[parts.length - 2] || '';
+  var name = last.replace(/\.git$/, '');
+  // Strip path traversal and shell-unsafe chars from the derived directory name
+  return name.replace(/[^a-zA-Z0-9_\-.]/g, '') || 'scrapy-project';
 }
 
 // ── 8. UI ACTIONS ────────────────────────────────────────────────────────────
@@ -1022,6 +1075,8 @@ var rawButane      = '';
 var rawIgnition    = '';
 var rawCloudConfig = '';
 
+var scrapyGitUrl = '';
+
 function copyOutput() {
   var text = currentTab === 'cloudconfig' ? rawCloudConfig
            : currentTab === 'ignition'    ? rawIgnition
@@ -1084,6 +1139,7 @@ function fallbackCopy(text) {
 // ── 9. REGENERATE ────────────────────────────────────────────────────────────
 
 function regenerate() {
+  scrapyGitUrl = sanitizeGitUrl((document.getElementById('scrapy-git-url') || {}).value || '');
   var state = collectFormState();
 
   if (currentMode === 'flatcar') {
@@ -1096,7 +1152,11 @@ function regenerate() {
     document.getElementById('pre-cloudconfig').innerHTML = highlightYAML(rawCloudConfig);
   }
 
-  var showScrapyNote = currentMode === 'flatcar' && state.services.indexOf('scrapy') !== -1;
+  var hasScrapy = state.services.indexOf('scrapy') !== -1;
+  var projectSection = document.getElementById('scrapy-project-section');
+  if (projectSection) projectSection.style.display = hasScrapy ? '' : 'none';
+
+  var showScrapyNote = currentMode === 'flatcar' && hasScrapy;
   document.getElementById('scrapy-note').style.display = showScrapyNote ? 'block' : 'none';
 }
 
