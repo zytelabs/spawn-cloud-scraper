@@ -308,7 +308,8 @@ textarea { min-height: 80px; }
   line-height: 1.7;
   overflow: auto;
   max-height: calc(100vh - 180px);
-  white-space: pre;
+  white-space: pre-wrap;
+  word-break: break-all;
   color: rgba(255, 255, 255, 0.82);
 }
 
@@ -462,8 +463,8 @@ textarea { min-height: 80px; }
   <div class="output-panel">
     <div class="tab-bar">
       <span id="tabs-flatcar" style="display:none">
-        <button class="tab"        id="tab-butane"      onclick="switchTab('butane')">Butane YAML</button>
         <button class="tab"        id="tab-ignition"    onclick="switchTab('ignition')">Ignition JSON</button>
+        <button class="tab"        id="tab-butane"      onclick="switchTab('butane')">Butane YAML</button>
       </span>
       <span id="tabs-ubuntu">
         <button class="tab active" id="tab-cloudconfig" onclick="switchTab('cloudconfig')">cloud-config</button>
@@ -609,7 +610,17 @@ const SERVICE_GROUPS = [
 
 // ── 2. SYSTEMD UNIT ──────────────────────────────────────────────────────────
 
+var COMPOSE_VERSION = 'v2.36.1';
+
 function renderScraperUnit() {
+  var composeURL = 'https://github.com/docker/compose/releases/download/' +
+    COMPOSE_VERSION + '/docker-compose-linux-x86_64';
+  var installCompose =
+    '[ -f /root/.docker/cli-plugins/docker-compose ] || ' +
+    '(mkdir -p /root/.docker/cli-plugins && ' +
+    'curl -fsSL ' + composeURL + ' -o /root/.docker/cli-plugins/docker-compose && ' +
+    'chmod +x /root/.docker/cli-plugins/docker-compose)';
+
   return (
     '[Unit]\n' +
     'Description=Scraper Stack\n' +
@@ -619,6 +630,7 @@ function renderScraperUnit() {
     '[Service]\n' +
     'Type=oneshot\n' +
     'RemainAfterExit=yes\n' +
+    'ExecStartPre=/bin/bash -c \'' + installCompose + '\'\n' +
     'ExecStartPre=-/usr/bin/docker compose -f /etc/scraper/docker-compose.yml pull\n' +
     'ExecStart=/usr/bin/docker compose -f /etc/scraper/docker-compose.yml up -d\n' +
     'ExecStop=/usr/bin/docker compose -f /etc/scraper/docker-compose.yml down\n' +
@@ -988,7 +1000,7 @@ function switchMode(mode) {
   document.getElementById('tabs-flatcar').style.display = mode === 'flatcar' ? '' : 'none';
   document.getElementById('tabs-ubuntu').style.display  = mode === 'ubuntu'  ? '' : 'none';
 
-  switchTab(mode === 'flatcar' ? 'butane' : 'cloudconfig');
+  switchTab(mode === 'flatcar' ? 'ignition' : 'cloudconfig');
 
   Object.keys(SERVICE_DEFS).forEach(function(key) {
     var def = SERVICE_DEFS[key];
