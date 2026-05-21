@@ -97,25 +97,65 @@ ssh ubuntu@<ip> cat /var/log/cloud-init-output.log
 #### Vultr — Flatcar + Ignition
 
 ```bash
-# Install vultr-cli — https://github.com/vultr/vultr-cli#installation
-# macOS:  brew install vultr-cli
-# Linux / Windows: download binary from GitHub releases
-vultr-cli auth   # enter API key
+# Install vultr-cli
+brew install vultr/vultr-cli/vultr-cli
 
-# Find Flatcar OS ID
-vultr-cli os list | grep -i flatcar   # note the ID (e.g. 426)
+# Set your API key (Vultr dashboard → Account → API)
+export VULTR_API_KEY="your_api_key_here"
+# Persist it:
+echo 'export VULTR_API_KEY="your_api_key_here"' >> ~/.zshrc
 
-# Deploy
+# Deploy (Chicago, shared CPU, 1 vCPU / 1 GB RAM / 25 GB, $5/mo)
 vultr-cli instance create \
-  --region ewr \
+  --region ord \
   --plan vc2-1c-1gb \
-  --os 426 \
-  --userdata "$(cat ignition.json)" \
-  --label my-scraper
+  --os 2077 \
+  --userdata-file ignition.json \
+  --label my-cloud-scraper
 
-# Verify
-ssh core@<ip> docker ps
-ssh core@<ip> systemctl status scraper
+# Get the IP once active
+vultr-cli instance list
+
+# Verify the stack came up
+ssh -i ~/.ssh/your_key core@<ip> "sudo systemctl status scraper.service"
+ssh -i ~/.ssh/your_key core@<ip> "sudo docker ps"
+```
+
+**OS IDs for Flatcar:**
+
+| ID | Channel |
+|---|---|
+| `2075` | LTS |
+| `2077` | Stable (recommended) |
+| `2078` | Beta |
+| `2079` | Alpha |
+
+**Test each service after deploy:**
+
+```bash
+# Scrapy Shell — drop into an interactive scrapy shell
+ssh -i ~/.ssh/your_key core@<ip> \
+  "sudo docker exec -it scraper-scrapy-1 scrapy shell https://example.com"
+
+# Redis
+ssh -i ~/.ssh/your_key core@<ip> \
+  "sudo docker exec -it scraper-redis-1 redis-cli ping"
+# → PONG
+
+# Redis — from your local machine
+redis-cli -h <ip> -p 6379 ping
+
+# Splash (JS renderer)
+curl http://<ip>:8050/
+
+# mitmproxy
+curl http://<ip>:8080/
+
+# Tor — verify exit node
+curl --socks5 <ip>:9050 https://check.torproject.org/api/ip
+
+# PostgreSQL
+psql -h <ip> -U postgres
 ```
 
 ---
