@@ -21,7 +21,7 @@ Services you can include:
 
 | Service | Ubuntu | Flatcar |
 |---|---|---|
-| Scrapy | native pip | python:3.11-slim container |
+| Scrapy | uv (pip-bootstrapped) | python:3.11-slim container |
 | Playwright Python | native pip + chromium | mcr.microsoft.com/playwright/python |
 | Puppeteer | native npm | ghcr.io/puppeteer/puppeteer |
 | Splash (JS renderer) | — Docker only | scrapinghub/splash |
@@ -75,8 +75,8 @@ When the **Scrapy** service is selected, a **Git repository URL** field appears.
 
 | Mode | What happens |
 |---|---|
-| **Ubuntu** | `git clone <url>` runs in `runcmd:` → project lands at `/home/ubuntu/<repo-name>/`. If a `requirements.txt` is present it is installed via pip. |
-| **Flatcar** | The scrapy container installs git, clones into `/project` (inside the container), and installs `requirements.txt` if present — all as part of container startup. |
+| **Ubuntu** | `git clone <url>` runs in `runcmd:` → project lands at `/home/ubuntu/<repo-name>/`. If a `requirements.txt` is present it is installed via `uv`; if absent (e.g. `pyproject.toml`-based projects), Scrapy is installed directly as a fallback. |
+| **Flatcar** | The scrapy container installs git + openssh-client, clones into `/project`, and installs `requirements.txt` via `uv` if present. Scrapy is always installed regardless of whether the clone or requirements install succeeds. |
 
 **Private repos** — embed a personal access token directly in the URL:
 
@@ -124,19 +124,21 @@ export VULTR_API_KEY="your_api_key_here"
 echo 'export VULTR_API_KEY="your_api_key_here"' >> ~/.zshrc
 
 # Deploy (Chicago, shared CPU, 1 vCPU / 1 GB RAM / 25 GB, $5/mo)
+# SSH key is embedded in the Ignition JSON — no --ssh-keys flag needed
 vultr-cli instance create \
   --region ord \
   --plan vc2-1c-1gb \
   --os 2077 \
   --userdata-file ignition.json \
+  --auto-backup=false \
   --label my-cloud-scraper
 
 # Get the IP once active
 vultr-cli instance list
 
-# Verify the stack came up
-ssh -i ~/.ssh/your_key core@<ip> "sudo systemctl status scraper.service"
-ssh -i ~/.ssh/your_key core@<ip> "sudo docker ps"
+# Verify the stack came up (core user is in the docker group — no sudo needed)
+ssh -i ~/.ssh/your_key core@<ip> "systemctl status scraper.service"
+ssh -i ~/.ssh/your_key core@<ip> "docker ps"
 ```
 
 **OS IDs for Flatcar:**
@@ -153,11 +155,11 @@ ssh -i ~/.ssh/your_key core@<ip> "sudo docker ps"
 ```bash
 # Scrapy — drop into an interactive scrapy shell
 ssh -i ~/.ssh/your_key core@<ip> \
-  "sudo docker exec -it scraper-scrapy-1 scrapy shell https://example.com"
+  "docker exec -it scraper-scrapy-1 scrapy shell https://example.com"
 
 # Redis
 ssh -i ~/.ssh/your_key core@<ip> \
-  "sudo docker exec -it scraper-redis-1 redis-cli ping"
+  "docker exec -it scraper-redis-1 redis-cli ping"
 # → PONG
 
 # Redis — from your local machine

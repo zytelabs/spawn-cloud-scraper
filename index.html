@@ -524,7 +524,7 @@ const SERVICE_DEFS = {
     cloudInitDesc: 'uv pip install scrapy',
     cloudInit: {
       packages: ['python3-pip'],
-      runcmd: ['pip3 install uv --break-system-packages', 'uv pip install --system scrapy'],
+      runcmd: ['pip3 install uv --break-system-packages', 'uv pip install --system --break-system-packages scrapy'],
     },
   },
   playwright: {
@@ -854,12 +854,12 @@ function renderCloudConfig(state) {
 
   if (scrapyGitUrl && state.services.indexOf('scrapy') !== -1) {
     // Drop the bare scrapy install — requirements.txt covers it; keep the uv bootstrap
-    allRuncmds = allRuncmds.filter(function(cmd) { return cmd !== 'uv pip install --system scrapy'; });
+    allRuncmds = allRuncmds.filter(function(cmd) { return cmd !== 'uv pip install --system --break-system-packages scrapy'; });
     var repoName = extractRepoName(scrapyGitUrl);
     if (allPackages.indexOf('git') === -1) allPackages.push('git');
     allRuncmds.push('git clone ' + scrapyGitUrl + ' /home/ubuntu/' + repoName);
     allRuncmds.push('chown -R ubuntu:ubuntu /home/ubuntu/' + repoName);
-    allRuncmds.push('uv pip install --system -r /home/ubuntu/' + repoName + '/requirements.txt || uv pip install --system scrapy');
+    allRuncmds.push('uv pip install --system --break-system-packages -r /home/ubuntu/' + repoName + '/requirements.txt || uv pip install --system --break-system-packages scrapy');
   }
 
   var out = '#cloud-config\n\n';
