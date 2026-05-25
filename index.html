@@ -520,11 +520,11 @@ const SERVICE_DEFS = {
     ports: [],
     envFile: true,
     restartPolicy: 'unless-stopped',
-    composeExtra: '    command: bash -c "pip install scrapy --quiet && tail -f /dev/null"\n    stdin_open: true\n    tty: true',
-    cloudInitDesc: 'pip install scrapy',
+    composeExtra: '    command: bash -c "pip install uv --quiet && uv pip install --system scrapy --quiet && tail -f /dev/null"\n    stdin_open: true\n    tty: true',
+    cloudInitDesc: 'uv pip install scrapy',
     cloudInit: {
       packages: ['python3-pip'],
-      runcmd: ['pip3 install scrapy'],
+      runcmd: ['pip3 install uv --break-system-packages', 'uv pip install --system scrapy'],
     },
   },
   playwright: {
@@ -686,10 +686,11 @@ function renderServiceBlock(key, def) {
   }
 
   if (key === 'scrapy' && scrapyGitUrl) {
-    var cloneCmd = 'apt-get update -q && apt-get install -y --no-install-recommends git --quiet' +
-      ' && git clone ' + scrapyGitUrl + ' /project' +
-      ' && pip install scrapy --quiet' +
-      ' && (pip install -r /project/requirements.txt --quiet 2>/dev/null || true)' +
+    var cloneCmd = 'apt-get update -q && apt-get install -y --no-install-recommends git openssh-client --quiet' +
+      ' && (git clone ' + scrapyGitUrl + ' /project 2>/dev/null || git -C /project pull --ff-only 2>/dev/null || true)' +
+      ' && pip install uv --quiet' +
+      ' && uv pip install --system scrapy --quiet' +
+      ' && ([ -f /project/requirements.txt ] && uv pip install --system -r /project/requirements.txt --quiet 2>/dev/null || true)' +
       ' && tail -f /dev/null';
     block += '    command: bash -c "' + cloneCmd + '"\n';
     block += '    stdin_open: true\n    tty: true\n';
@@ -750,9 +751,29 @@ function renderButane(state) {
   out += '        inline: |\n';
   out += indentBlock(composeContent, 10);
 
+  var safeHostname = state.hostname.replace(/'/g, '').replace(/[\n\r]/g, '') || 'flatcar-scraper';
+  var setHostnameUnit =
+    '[Unit]\n' +
+    'Description=Set hostname from config\n' +
+    'After=afterburn.service\n' +
+    'Before=scraper.service\n' +
+    '\n' +
+    '[Service]\n' +
+    'Type=oneshot\n' +
+    'RemainAfterExit=yes\n' +
+    'ExecStart=/usr/bin/hostnamectl set-hostname \'' + safeHostname + '\'\n' +
+    '\n' +
+    '[Install]\n' +
+    'WantedBy=multi-user.target';
+
   out += '\nsystemd:\n  units:\n';
   out += '    - name: docker.service\n';
   out += '      enabled: true\n';
+  out += '\n';
+  out += '    - name: set-hostname.service\n';
+  out += '      enabled: true\n';
+  out += '      contents: |\n';
+  out += indentBlock(setHostnameUnit, 8);
   out += '\n';
   out += '    - name: scraper.service\n';
   out += '      enabled: true\n';
@@ -798,9 +819,17 @@ function renderIgnition(state) {
     ],
   };
 
+  var safeHostname = state.hostname.replace(/'/g, '').replace(/[\n\r]/g, '') || 'flatcar-scraper';
+  var setHostnameUnit =
+    '[Unit]\nDescription=Set hostname from config\nAfter=afterburn.service\nBefore=scraper.service\n\n' +
+    '[Service]\nType=oneshot\nRemainAfterExit=yes\n' +
+    'ExecStart=/usr/bin/hostnamectl set-hostname \'' + safeHostname + '\'\n\n' +
+    '[Install]\nWantedBy=multi-user.target';
+
   obj.systemd = {
     units: [
       { name: 'docker.service', enabled: true },
+      { name: 'set-hostname.service', enabled: true, contents: setHostnameUnit },
       { name: 'scraper.service', enabled: true, contents: unitContent },
     ],
   };
@@ -824,13 +853,13 @@ function renderCloudConfig(state) {
   });
 
   if (scrapyGitUrl && state.services.indexOf('scrapy') !== -1) {
-    // Drop the bare 'pip3 install scrapy' — requirements.txt covers it
-    allRuncmds = allRuncmds.filter(function(cmd) { return cmd !== 'pip3 install scrapy'; });
+    // Drop the bare scrapy install — requirements.txt covers it; keep the uv bootstrap
+    allRuncmds = allRuncmds.filter(function(cmd) { return cmd !== 'uv pip install --system scrapy'; });
     var repoName = extractRepoName(scrapyGitUrl);
     if (allPackages.indexOf('git') === -1) allPackages.push('git');
     allRuncmds.push('git clone ' + scrapyGitUrl + ' /home/ubuntu/' + repoName);
     allRuncmds.push('chown -R ubuntu:ubuntu /home/ubuntu/' + repoName);
-    allRuncmds.push('pip3 install -r /home/ubuntu/' + repoName + '/requirements.txt || true');
+    allRuncmds.push('uv pip install --system -r /home/ubuntu/' + repoName + '/requirements.txt || uv pip install --system scrapy');
   }
 
   var out = '#cloud-config\n\n';
@@ -864,10 +893,9 @@ function renderCloudConfig(state) {
     out += '\n';
   }
 
-  if (allRuncmds.length > 0) {
-    out += 'runcmd:\n';
-    allRuncmds.forEach(function(cmd) { out += '  - ' + cmd + '\n'; });
-  }
+  allRuncmds.unshift('chown ubuntu:ubuntu /etc/scraper/.env');
+  out += 'runcmd:\n';
+  allRuncmds.forEach(function(cmd) { out += '  - ' + cmd + '\n'; });
 
   return out;
 }
