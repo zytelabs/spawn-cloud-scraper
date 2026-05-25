@@ -553,16 +553,6 @@ const SERVICE_DEFS = {
       runcmd: ['npm install -g puppeteer'],
     },
   },
-  splash: {
-    label: 'Splash',
-    image: 'scrapinghub/splash:latest',
-    ports: ['8050:8050'],
-    envFile: false,
-    restartPolicy: 'unless-stopped',
-    composeExtra: null,
-    cloudInitDesc: 'Docker only — skipped',
-    cloudInit: null,
-  },
   redis: {
     label: 'Redis',
     image: 'redis:7-alpine',
@@ -618,7 +608,7 @@ const SERVICE_DEFS = {
 };
 
 const SERVICE_GROUPS = [
-  { label: 'Scrapers',         keys: ['scrapy', 'playwright', 'puppeteer', 'splash'] },
+  { label: 'Scrapers',         keys: ['scrapy', 'playwright', 'puppeteer'] },
   { label: 'Queue / Storage',  keys: ['redis', 'postgres'] },
   { label: 'Proxies',          keys: ['tor', 'mitmproxy'] },
 ];
